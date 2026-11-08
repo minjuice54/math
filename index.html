@@ -1,0 +1,354 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>직각 탐정</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;500;700;900&display=swap">
+<style>
+/* 레이아웃: 위쪽 사건 진행 띠 → 한 화면에 사건 하나. 왼쪽 실험판(모눈) / 오른쪽 수사 노트 */
+:root{
+  --bg:#FFF7E6; --paper:#FFFFFF; --ink:#22201C; --muted:#6E675B; --grid:#E7DCC4; --gridDot:#BBAE90;
+  --lemon:#FFE14D; --coral:#FF8A7A; --sky:#7CC8FF; --mint:#6FD9A8; --soft:#F4EAD2;
+  --okBg:#D9F6E7; --okInk:#0E6A43; --noBg:#FFE2DD; --noInk:#B3271A;
+  --shadow:#22201C;
+  --display:"Jua","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  --body:"Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#1C1A16; --paper:#28251F; --ink:#F3ECDC; --muted:#B9AF9A; --grid:#3A362D; --gridDot:#6B6352; --soft:#34302797;
+  --lemon:#E8CB3C; --coral:#EA7A6B; --sky:#5DB2E8; --mint:#4DC08C;
+  --okBg:#1D3A2C; --okInk:#8EE5BA; --noBg:#45231E; --noInk:#FF9D8E; --shadow:#000; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#1C1A16; --paper:#28251F; --ink:#F3ECDC; --muted:#B9AF9A; --grid:#3A362D; --gridDot:#6B6352; --soft:#34302797;
+  --lemon:#E8CB3C; --coral:#EA7A6B; --sky:#5DB2E8; --mint:#4DC08C;
+  --okBg:#1D3A2C; --okInk:#8EE5BA; --noBg:#45231E; --noInk:#FF9D8E; --shadow:#000; color-scheme:dark}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.55}
+.wrap{max-width:1240px;margin:0 auto;padding-block:14px 30px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:14px}
+header{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+h1{font-family:var(--display);font-weight:400;font-size:32px;margin:0;letter-spacing:-.5px}
+h1 .badge{display:inline-block;background:var(--ink);color:var(--paper);border-radius:8px;padding:0 10px;margin-right:8px;font-size:22px;vertical-align:4px}
+.steps{display:flex;gap:6px;flex-wrap:wrap;margin-left:auto}
+.step{border:2.5px solid var(--ink);border-radius:999px;padding:2px 12px;font-weight:700;font-size:14px;background:var(--paper);color:var(--muted);cursor:pointer;font-family:inherit}
+.step.on{background:var(--lemon);color:#22201C}
+.step.done{background:var(--mint);color:#22201C}
+.step:disabled{cursor:not-allowed;opacity:.55}
+.card{background:var(--paper);border:3px solid var(--ink);border-radius:18px;box-shadow:5px 5px 0 var(--shadow);padding:18px 20px;min-width:0}
+.case-h{font-family:var(--display);font-size:26px;font-weight:400;margin:0 0 6px}
+.lead{font-size:17px;margin:0 0 10px}
+.two{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:16px;align-items:start}
+@media (max-width:900px){.two{grid-template-columns:1fr}}
+button{font:inherit;color:inherit}
+.btn{border:2.5px solid var(--ink);border-radius:12px;background:var(--paper);box-shadow:3px 3px 0 var(--shadow);padding:7px 16px;font-weight:800;cursor:pointer}
+.btn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--shadow)}
+.btn.go{background:var(--mint);color:#22201C}
+.btn.hot{background:var(--coral);color:#22201C}
+.btn:disabled{opacity:.45;cursor:not-allowed;transform:none;box-shadow:3px 3px 0 var(--shadow)}
+.btn:focus-visible,.step:focus-visible,.opt:focus-visible{outline:3px solid var(--sky);outline-offset:2px}
+/* 실험판 */
+.board{width:100%;max-width:640px;aspect-ratio:640/470;touch-action:none;user-select:none;display:block;background:var(--paper);border-radius:12px}
+.board .gl{stroke:var(--grid);stroke-width:1.4}
+.board .gd{fill:var(--gridDot)}
+.board .tri{fill:var(--sky);fill-opacity:.28;stroke:var(--ink);stroke-width:3.5;stroke-linejoin:round}
+.board .sqr{stroke:var(--ink);stroke-width:1.6;stroke-dasharray:5 4;fill-opacity:.32}
+.board .sqn{font-family:var(--display);font-size:22px;fill:var(--ink);text-anchor:middle;dominant-baseline:central;paint-order:stroke;stroke:var(--paper);stroke-width:5px}
+.board .h{fill:var(--coral);stroke:var(--ink);stroke-width:3;cursor:grab}
+.board .h.drag{cursor:grabbing;fill:var(--lemon)}
+.board .vl{font-family:"Times New Roman",serif;font-style:italic;font-size:22px;fill:var(--ink);text-anchor:middle;dominant-baseline:central}
+.board .rm{fill:none;stroke:var(--noInk);stroke-width:3}
+.read{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0}
+.read div{border:2.5px solid var(--ink);border-radius:12px;padding:6px 8px;text-align:center;background:var(--bg)}
+.read b{display:block;font-family:var(--display);font-size:28px;font-weight:400;font-variant-numeric:tabular-nums}
+.read span{font-size:13px;color:var(--muted)}
+.angle{border:2.5px solid var(--ink);border-radius:12px;padding:8px 12px;font-weight:800;font-size:18px;display:flex;align-items:center;gap:10px}
+.angle.right{background:var(--okBg);color:var(--okInk)}
+.angle.big{background:var(--noBg);color:var(--noInk)}
+.angle.small{background:var(--soft)}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;margin-top:6px}
+th,td{border-bottom:1.5px solid var(--grid);padding:6px 4px;text-align:center}
+th{font-size:13px;color:var(--muted);font-weight:700}
+td.sum{font-weight:900}
+.hidden-col{color:transparent;text-shadow:none}
+.mission{border:2.5px dashed var(--ink);border-radius:14px;padding:10px 14px;background:var(--bg);margin-bottom:10px}
+.mission b{font-family:var(--display);font-weight:400;font-size:19px}
+.q{margin-top:12px;border:3px solid var(--ink);border-radius:14px;padding:12px 14px;background:var(--lemon);color:#22201C}
+.q p{margin:0 0 8px;font-weight:800}
+.opts{display:flex;flex-direction:column;gap:8px}
+.opt{border:2.5px solid #22201C;border-radius:10px;background:#fff;color:#22201C;padding:7px 12px;text-align:left;font-weight:700;cursor:pointer;font-family:inherit;font-size:16px}
+.opt.ok{background:#D9F6E7}.opt.no{background:#FFE2DD}
+.fb{margin-top:8px;font-weight:700}
+.math{font-family:"Times New Roman",serif;font-style:italic}
+.rule{border:3px solid var(--ink);border-radius:14px;padding:12px 16px;background:var(--mint);color:#22201C;font-weight:800;font-size:18px;text-align:center}
+.rule .big{font-family:"Times New Roman",serif;font-size:30px;display:block;margin-top:4px}
+.nav{display:flex;justify-content:flex-end;gap:10px;margin-top:12px}
+.note{color:var(--muted);font-size:14px}
+/* 예상 퀴즈 */
+.qgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
+.qc{border:2.5px solid var(--ink);border-radius:14px;padding:12px;background:var(--bg);display:flex;flex-direction:column;gap:8px}
+.qc .tri3{font-family:var(--display);font-size:24px}
+.qc .row{display:flex;gap:8px}
+.qc .row .opt{flex:1;text-align:center}
+.qc .why{font-size:14.5px;font-weight:600;min-height:1.5em}
+/* 사건 파일 */
+.files{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:14px}
+.file{border:3px solid var(--ink);border-radius:16px;background:var(--bg);overflow:hidden;display:flex;flex-direction:column}
+.file .ttl{font-family:var(--display);font-size:20px;padding:8px 12px;border-bottom:2.5px solid var(--ink);background:var(--paper)}
+.file svg{display:block;width:100%;height:auto;background:var(--paper)}
+.file .body{padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+.scene-line{stroke:var(--ink);stroke-width:3;fill:none;stroke-linecap:round}
+.scene-lab{font-family:var(--body);font-weight:900;font-size:15px;fill:var(--ink);paint-order:stroke;stroke:var(--paper);stroke-width:5px}
+.scene-q{font-family:var(--display);font-size:30px;fill:var(--noInk)}
+.hint{font-size:14px;color:var(--muted)}
+.final{display:flex;flex-direction:column;gap:14px;align-items:stretch}
+.stamp{align-self:center;font-family:var(--display);font-size:40px;border:5px solid var(--noInk);color:var(--noInk);border-radius:16px;padding:4px 24px;transform:rotate(-6deg)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <h1><span class="badge">7.5</span>직각 탐정</h1>
+    <nav class="steps" id="steps" aria-label="사건 진행"></nav>
+  </header>
+  <main id="view"></main>
+</div>
+
+<script>
+/* ---------------- 진행 상태 ---------------- */
+const STEPS=[['s0','사건 0'],['m1','미션 1'],['m2','미션 2'],['m3','미션 3'],['m4','미션 4'],['end','사건 해결']];
+const LS='right-detective-v1';
+let st={at:'s0',done:{},rec1:[],rec2:[],q1:null,q2a:null,q2b:null,m3:{},m4:{}};
+try{const s=JSON.parse(localStorage.getItem(LS)||'null'); if(s&&s.at) st=Object.assign(st,s);}catch(e){}
+const save=()=>{try{localStorage.setItem(LS,JSON.stringify(st))}catch(e){}};
+const $=s=>document.querySelector(s);
+function go(id){st.at=id;save();render();window.scrollTo({top:0,behavior:'smooth'});}
+function unlocked(id){const i=STEPS.findIndex(s=>s[0]===id);return i===0||STEPS.slice(0,i).every(s=>st.done[s[0]]);}
+function renderSteps(){
+  $('#steps').innerHTML=STEPS.map(([id,l])=>`<button class="step ${st.at===id?'on':''} ${st.done[id]?'done':''}" data-go="${id}" ${unlocked(id)?'':'disabled'}>${st.done[id]?'✔ ':''}${l}</button>`).join('');
+}
+
+/* ---------------- 모눈 실험판 ---------------- */
+const CELL=40, COLS=15, ROWS=10, OX=20, OY=25;   // 격자점 (0..15, 0..10)
+let P=[{x:3,y:2},{x:9,y:2},{x:5,y:6}];
+const px=p=>({x:OX+p.x*CELL,y:OY+(ROWS-p.y)*CELL});
+const d2=(a,b)=>(a.x-b.x)**2+(a.y-b.y)**2;
+function info(){
+  const [A,B,C]=P; const cross=(B.x-A.x)*(C.y-A.y)-(B.y-A.y)*(C.x-A.x);
+  if(cross===0) return {bad:true};
+  const s=[{n:'BC',v:d2(B,C),opp:0},{n:'CA',v:d2(C,A),opp:1},{n:'AB',v:d2(A,B),opp:2}];
+  const sorted=s.slice().sort((p,q)=>p.v-q.v);
+  const big=sorted[2], sum=sorted[0].v+sorted[1].v;
+  // 가장 큰 각 (가장 긴 변의 맞은편 꼭짓점)
+  const V=P[big.opp], O1=P[(big.opp+1)%3], O2=P[(big.opp+2)%3];
+  const dot=(O1.x-V.x)*(O2.x-V.x)+(O1.y-V.y)*(O2.y-V.y);
+  const ang=Math.acos(dot/Math.sqrt(d2(V,O1)*d2(V,O2)))*180/Math.PI;
+  return {a:sorted[0].v,b:sorted[1].v,c:big.v,sum,ang,kind:dot===0?'right':dot<0?'big':'small',vi:big.opp};
+}
+function sqPts(a,b){ // 변 ab 바깥쪽 정사각형
+  const [A,B,C]=P; const g={x:(A.x+B.x+C.x)/3,y:(A.y+B.y+C.y)/3};
+  const d={x:b.x-a.x,y:b.y-a.y}; let n={x:-d.y,y:d.x};
+  if(n.x*(g.x-a.x)+n.y*(g.y-a.y)>0) n={x:d.y,y:-d.x};
+  return [a,b,{x:b.x+n.x,y:b.y+n.y},{x:a.x+n.x,y:a.y+n.y}];
+}
+function boardSVG(showSq){
+  let g='';
+  for(let i=0;i<=COLS;i++) g+=`<line class="gl" x1="${OX+i*CELL}" y1="${OY}" x2="${OX+i*CELL}" y2="${OY+ROWS*CELL}"/>`;
+  for(let j=0;j<=ROWS;j++) g+=`<line class="gl" x1="${OX}" y1="${OY+j*CELL}" x2="${OX+COLS*CELL}" y2="${OY+j*CELL}"/>`;
+  return `<svg class="board" id="board" viewBox="0 0 ${OX*2+COLS*CELL} ${OY*2+ROWS*CELL}" role="img" aria-label="모눈 위 삼각형 실험판">
+    <defs><clipPath id="clipb"><rect x="${OX}" y="${OY}" width="${COLS*CELL}" height="${ROWS*CELL}"/></clipPath></defs>
+    ${g}<g id="sqs" clip-path="url(#clipb)"></g><g id="trig"></g></svg>`;
+}
+let showSq=true;
+function drawBoard(){
+  const I=info(), sv=$('#board'); if(!sv) return;
+  const q=P.map(px), names=['A','B','C'];
+  const cols=['var(--coral)','var(--lemon)','var(--mint)'];
+  let sq='';
+  if(showSq&&!I.bad){
+    [[1,2],[2,0],[0,1]].forEach(([i,j],k)=>{
+      const pts=sqPts(P[i],P[j]).map(px); const v=d2(P[i],P[j]);
+      const isBig=k===I.vi;
+      const cx=pts.reduce((s,p)=>s+p.x,0)/4, cy=pts.reduce((s,p)=>s+p.y,0)/4;
+      sq+=`<polygon class="sqr" points="${pts.map(p=>p.x+','+p.y).join(' ')}" fill="${isBig?'var(--sky)':cols[k]}"/><text class="sqn" x="${cx}" y="${cy}">${v}</text>`;
+    });
+  }
+  $('#sqs').innerHTML=sq;
+  let t=`<polygon class="tri" points="${q.map(p=>p.x+','+p.y).join(' ')}"/>`;
+  if(!I.bad&&I.kind==='right'){ // 직각 표시
+    const V=P[I.vi],O1=P[(I.vi+1)%3],O2=P[(I.vi+2)%3];
+    const u=(o)=>{const L=Math.sqrt(d2(V,o));return {x:(o.x-V.x)/L*.38,y:(o.y-V.y)/L*.38}};
+    const a=u(O1),b=u(O2), p1=px({x:V.x+a.x,y:V.y+a.y}),p2=px({x:V.x+a.x+b.x,y:V.y+a.y+b.y}),p3=px({x:V.x+b.x,y:V.y+b.y});
+    t+=`<polyline class="rm" points="${p1.x},${p1.y} ${p2.x},${p2.y} ${p3.x},${p3.y}"/>`;
+  }
+  const gc={x:q.reduce((s,p)=>s+p.x,0)/3,y:q.reduce((s,p)=>s+p.y,0)/3};
+  q.forEach((p,i)=>{const dx=p.x-gc.x,dy=p.y-gc.y,L=Math.hypot(dx,dy)||1;
+    t+=`<text class="vl" x="${p.x+dx/L*22}" y="${p.y+dy/L*22}">${names[i]}</text>`;});
+  q.forEach((p,i)=>t+=`<circle class="h" data-i="${i}" cx="${p.x}" cy="${p.y}" r="13" tabindex="0" aria-label="꼭짓점 ${names[i]} 옮기기 (방향키)"/>`);
+  $('#trig').innerHTML=t;
+  const r=$('#readout'); if(r) r.innerHTML=readHTML(I);
+  const rb=$('#recBtn'); if(rb) rb.disabled=!canRecord(I);
+}
+function readHTML(I){
+  if(I.bad) return `<div class="angle small">세 점이 한 직선 위에 있어요. 삼각형이 아니에요!</div>`;
+  const kindTxt=I.kind==='right'?'가장 큰 각 = 90° 직각!':I.kind==='big'?`가장 큰 각 ≈ ${I.ang.toFixed(1)}° (90°보다 커요)`:`가장 큰 각 ≈ ${I.ang.toFixed(1)}° (90°보다 작아요)`;
+  return `<div class="read"><div><span>짧은 변²</span><b>${I.a}</b></div><div><span>중간 변²</span><b>${I.b}</b></div><div style="background:var(--sky);color:#22201C"><span style="color:#22201C">가장 긴 변²</span><b>${I.c}</b></div></div>
+   <div class="angle ${I.kind}">${I.kind==='right'?'📐':'📏'} ${kindTxt}</div>`;
+}
+function canRecord(I){
+  if(I.bad) return false;
+  const key=[I.a,I.b,I.c].join('-');
+  if(st.at==='m1') return I.kind==='right'&&st.rec1.length<3&&!st.rec1.some(r=>r.key===key);
+  if(st.at==='m2'){ if(st.rec2.length>=2||I.kind==='right') return false; return !st.rec2.some(r=>r.kind===I.kind); }
+  return false;
+}
+/* 드래그 */
+let drag=null;
+function svgPt(e){const sv=$('#board'),r=sv.getBoundingClientRect(),vb=sv.viewBox.baseVal;
+  return {x:(e.clientX-r.left)*vb.width/r.width,y:(e.clientY-r.top)*vb.height/r.height};}
+document.addEventListener('pointerdown',e=>{const h=e.target.closest&&e.target.closest('.h');if(!h)return;
+  drag=+h.dataset.i;h.classList.add('drag');h.setPointerCapture&&h.setPointerCapture(e.pointerId);e.preventDefault();});
+document.addEventListener('pointermove',e=>{if(drag===null)return;const p=svgPt(e);
+  const nx=Math.max(0,Math.min(COLS,Math.round((p.x-OX)/CELL))), ny=Math.max(0,Math.min(ROWS,Math.round(ROWS-(p.y-OY)/CELL)));
+  if(nx!==P[drag].x||ny!==P[drag].y){P[drag]={x:nx,y:ny};drawBoard();const hh=document.querySelector(`.h[data-i="${drag}"]`);hh&&hh.classList.add('drag');}});
+document.addEventListener('pointerup',()=>{if(drag!==null){drag=null;drawBoard();}});
+document.addEventListener('keydown',e=>{const h=document.activeElement;if(!h||!h.classList||!h.classList.contains('h'))return;
+  const i=+h.dataset.i,mv={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,1],ArrowDown:[0,-1]}[e.key];if(!mv)return;e.preventDefault();
+  P[i]={x:Math.max(0,Math.min(COLS,P[i].x+mv[0])),y:Math.max(0,Math.min(ROWS,P[i].y+mv[1]))};drawBoard();document.querySelector(`.h[data-i="${i}"]`).focus();});
+
+/* ---------------- 각 화면 ---------------- */
+const M=s=>`<span class="math">${s}</span>`;
+function recTable(rows,showSum){
+  return `<table><thead><tr><th>#</th><th>짧은 변²</th><th>중간 변²</th><th>짧은 변² + 중간 변²</th><th>가장 긴 변²</th>${st.at==='m2'?'<th>가장 큰 각</th>':''}</tr></thead><tbody>
+   ${rows.map((r,i)=>`<tr><td>${i+1}</td><td>${r.a}</td><td>${r.b}</td><td class="sum ${showSum?'':'hidden-col'}">${showSum?r.a+r.b:'?'}</td><td><b>${r.c}</b></td>${st.at==='m2'?`<td>${r.kind==='big'?'90°보다 큼':'90°보다 작음'}</td>`:''}</tr>`).join('')||`<tr><td colspan="6" class="note">아직 기록이 없어요</td></tr>`}</tbody></table>`;
+}
+function quizHTML(key,qtext,opts,okIdx,okFb,noFb){
+  const ans=st[key];
+  return `<div class="q"><p>${qtext}</p><div class="opts">${opts.map((o,i)=>`<button class="opt ${ans!==null&&ans!==undefined?(i===okIdx?'ok':(i===ans?'no':'')):''}" data-quiz="${key}" data-i="${i}">${i+1}. ${o}</button>`).join('')}</div>
+   ${ans!==null&&ans!==undefined?`<div class="fb">${ans===okIdx?'⭕ '+okFb:'❌ '+noFb+' 다시 골라 보세요.'}</div>`:''}</div>`;
+}
+const V={
+ s0:()=>`<section class="card"><h2 class="case-h">사건 0 · 목수의 비밀</h2>
+   <div class="two"><div>
+     <p class="lead">새 집을 짓는 목수 아저씨. 벽과 벽이 만나는 모서리가 <b>정확히 직각</b>이어야 해요.<br>그런데 아저씨 손에는 <b>각도기가 없고</b>, 줄자 하나뿐!</p>
+     <p class="lead">아저씨는 한쪽 벽에 <b>3 m</b>, 다른 쪽 벽에 <b>4 m</b>를 표시하더니, 두 표시 사이를 재 보고 이렇게 말했어요.</p>
+     <div class="q"><p>“5 m 딱 나오네. 이 모서리는 직각이야!”</p><span style="font-weight:600">어떻게 길이만 재고 직각인지 알 수 있을까요? 미션을 풀면서 비밀을 밝혀 봐요.</span></div>
+     <div class="nav"><button class="btn go" data-done="s0" data-next="m1">수사 시작 ▶</button></div>
+   </div><div>${sceneCarpenter('?')}</div></div></section>`,
+ m1:()=>{const full=st.rec1.length>=3;return `<section class="card"><h2 class="case-h">미션 1 · 직각삼각형 3개 잡아라!</h2>
+   <div class="two"><div>${boardSVG()}
+     <p class="note">꼭짓점(빨간 점)을 끌어서 옮겨요. 각 변 위의 정사각형 안 숫자는 그 변의 길이의 <b>제곱</b>(= 정사각형의 넓이)이에요.</p></div>
+   <div><div class="mission"><b>임무</b> 가장 큰 각이 <b>90°</b>인 삼각형을 만들고 <b>기록</b>하세요. 서로 다른 삼각형 3개!<br><span class="note">힌트: 비스듬히 기울어진 직각삼각형도 OK</span></div>
+     <div id="readout"></div>
+     <div class="nav" style="justify-content:flex-start"><button class="btn hot" id="recBtn" data-rec="1">📌 기록하기 (${st.rec1.length}/3)</button>
+       <label class="note" style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="sqT" ${showSq?'checked':''}> 정사각형 보기</label></div>
+     ${recTable(st.rec1,st.q1===1)}
+     ${full?quizHTML('q1','세 기록에서 찾은 규칙은?',[`(짧은 변) + (중간 변) = (가장 긴 변)`,`(짧은 변)² + (중간 변)² = (가장 긴 변)²`,`(가장 긴 변)² = (짧은 변)² × 2`],1,'맞아요! 표의 ? 칸이 열렸어요. 작은 두 정사각형의 넓이의 합 = 가장 큰 정사각형의 넓이','표의 숫자로 직접 계산해 보세요.'):''}
+     <div class="nav"><button class="btn go" data-done="m1" data-next="m2" ${st.q1===1?'':'disabled'}>다음 미션 ▶</button></div>
+   </div></div></section>`;},
+ m2:()=>{const full=st.rec2.length>=2;return `<section class="card"><h2 class="case-h">미션 2 · 직각이 아니면?</h2>
+   <div class="two"><div>${boardSVG()}</div>
+   <div><div class="mission"><b>임무</b> 직각이 <b>아닌</b> 삼각형 2개를 기록하고, 언제 크고 언제 작은지 찾아내세요.<br>① 가장 큰 각이 90°보다 <b>큰</b> 삼각형 ② 90°보다 <b>작은</b> 삼각형</div>
+     <div id="readout"></div>
+     <div class="nav" style="justify-content:flex-start"><button class="btn hot" id="recBtn" data-rec="2">📌 기록하기 (${st.rec2.length}/2)</button></div>
+     ${recTable(st.rec2,true)}
+     ${full?quizHTML('q2a','가장 큰 각이 <u>90°보다 클 때</u>, (가장 긴 변)²과 (짧은 변)² + (중간 변)²의 크기는?',[`(가장 긴 변)² <b>&gt;</b> (짧은 변)² + (중간 변)²`,`(가장 긴 변)² <b>=</b> (짧은 변)² + (중간 변)²`,`(가장 긴 변)² <b>&lt;</b> (짧은 변)² + (중간 변)²`],0,'맞아요! 각을 벌리면 맞은편 변이 길어져서 가장 긴 변²이 더 커져요.','표에서 ‘90°보다 큼’ 줄의 두 값을 비교해 보세요.'):''}
+     ${full&&st.q2a===0?quizHTML('q2b','가장 큰 각이 <u>90°보다 작을 때</u>는?',[`(가장 긴 변)² <b>&gt;</b> (짧은 변)² + (중간 변)²`,`(가장 긴 변)² <b>=</b> (짧은 변)² + (중간 변)²`,`(가장 긴 변)² <b>&lt;</b> (짧은 변)² + (중간 변)²`],2,'맞아요! 각을 오므리면 맞은편 변이 짧아져서 가장 긴 변²이 더 작아져요.','표에서 ‘90°보다 작음’ 줄의 두 값을 비교해 보세요.'):''}
+     ${st.q2a===0&&st.q2b===2?`<div class="rule" style="margin-top:12px;text-align:left;font-size:16px">가장 긴 변의 길이를 ${M('c')}라고 하면<br>• ${M('c')}² <b>&gt;</b> ${M('a')}² + ${M('b')}² → 가장 큰 각이 90°보다 <b>크다</b><br>• ${M('c')}² <b>=</b> ${M('a')}² + ${M('b')}² → 가장 큰 각이 <b>직각</b><br>• ${M('c')}² <b>&lt;</b> ${M('a')}² + ${M('b')}² → 가장 큰 각이 90°보다 <b>작다</b></div>`:''}
+     <div class="nav"><button class="btn go" data-done="m2" data-next="m3" ${st.q2a===0&&st.q2b===2?'':'disabled'}>다음 미션 ▶</button></div>
+   </div></div></section>`;},
+ m3:()=>{const items=M3;const all=items.every((_,i)=>st.m3[i]===items[i].ok);return `<section class="card"><h2 class="case-h">미션 3 · 거꾸로 추리하기</h2>
+   <p class="lead">이번엔 반대예요. <b>세 변의 길이만</b> 보고, 직각삼각형인지 추리하세요.<br><span class="note">요령: 가장 긴 변을 먼저 찾고 → (나머지 두 변)²의 합과 (가장 긴 변)²을 비교!</span></p>
+   <div class="qgrid">${items.map((it,i)=>{const a=st.m3[i];const done=a!==undefined;return `<div class="qc"><div class="tri3">${it.s.join(', ')}</div>
+      <div class="row"><button class="opt ${done?(it.ok===true?'ok':(a===true?'no':'')):''}" data-m3="${i}" data-v="1">직각삼각형 ⭕</button><button class="opt ${done?(it.ok===false?'ok':(a===false?'no':'')):''}" data-m3="${i}" data-v="0">아니다 ❌</button></div>
+      <div class="why">${done?(a===it.ok?'정답! ':'다시 계산해 보세요. ')+it.w:''}</div></div>`}).join('')}</div>
+   <div class="nav"><button class="btn go" data-done="m3" data-next="m4" ${all?'':'disabled'}>다음 미션 ▶</button></div></section>`;},
+ m4:()=>{const all=M4.every((it,i)=>st.m4[i]===it.ok);return `<section class="card"><h2 class="case-h">미션 4 · 실생활 사건 파일</h2>
+   <p class="lead">현장에서 잰 길이예요. 표시한 곳이 <b>직각</b>인지 판정하세요!</p>
+   <div class="files">${M4.map((it,i)=>{const a=st.m4[i],done=a!==undefined;return `<article class="file"><div class="ttl">파일 ${i+1} · ${it.t}</div>${it.svg()}
+     <div class="body"><div>${it.q}</div>${it.hint?`<div class="hint">💡 ${it.hint}</div>`:''}
+     <div class="row" style="display:flex;gap:8px"><button class="opt ${done?(it.ok===true?'ok':(a===true?'no':'')):''}" style="flex:1;text-align:center" data-m4="${i}" data-v="1">직각이다 ⭕</button><button class="opt ${done?(it.ok===false?'ok':(a===false?'no':'')):''}" style="flex:1;text-align:center" data-m4="${i}" data-v="0">아니다 ❌</button></div>
+     <div class="why" style="font-weight:600;font-size:14.5px">${done?(a===it.ok?'정답! ':'다시 계산해 보세요. ')+it.w:''}</div></div></article>`}).join('')}</div>
+   <div class="nav"><button class="btn go" data-done="m4" data-next="end" ${all?'':'disabled'}>사건 해결 ▶</button></div></section>`;},
+ end:()=>`<section class="card final"><div class="stamp">사건 해결!</div>
+   <div class="two"><div>${sceneCarpenter('ok')}</div><div style="display:flex;flex-direction:column;gap:12px">
+     <p class="lead" style="margin:0">목수 아저씨의 비밀: 세 변이 <b>3, 4, 5</b>이면</p>
+     <div class="rule">3² + 4² = 9 + 16 = 25 = 5²<span class="big">→ 직각삼각형!</span></div>
+     <div class="rule" style="background:var(--lemon)">세 변의 길이가 ${M('a')}, ${M('b')}, ${M('c')}인 삼각형에서<span class="big">${M('a')}² + ${M('b')}² = ${M('c')}² 이면</span>빗변이 ${M('c')}인 직각삼각형이다</div>
+     <p class="note" style="margin:0">고대 이집트 사람들도 12칸 매듭 끈을 3, 4, 5로 접어서 피라미드의 직각을 만들었대요. 🏜️</p>
+     <p class="lead" style="margin:0"><b>이제 선생님 화면을 봐 주세요!</b></p>
+     <div class="nav"><button class="btn" id="restart">처음부터 다시</button></div></div></div></section>`
+};
+
+/* ---------------- 미션 3 · 4 데이터 ---------------- */
+const M3=[
+ {s:[3,4,5],ok:true,w:'9 + 16 = 25 = 5²'},
+ {s:[4,5,6],ok:false,w:'16 + 25 = 41 ≠ 36'},
+ {s:[5,12,13],ok:true,w:'25 + 144 = 169 = 13²'},
+ {s:[6,8,10],ok:true,w:'36 + 64 = 100 = 10²'},
+ {s:[2,3,4],ok:false,w:'4 + 9 = 13 ≠ 16'},
+ {s:[10,6,8],ok:true,w:'가장 긴 변은 10! 36 + 64 = 100'},
+ {s:[13,5,11],ok:false,w:'가장 긴 변은 13. 25 + 121 = 146 ≠ 169'},
+ {s:[17,15,8],ok:true,w:'가장 긴 변은 17. 64 + 225 = 289 = 17²'}];
+function sceneCarpenter(mode){
+  const q=mode==='?';
+  return `<svg viewBox="0 0 360 260" role="img" aria-label="벽 모서리를 위에서 본 그림" style="width:100%;height:auto;background:var(--paper);border:2.5px solid var(--ink);border-radius:14px">
+   <rect x="40" y="30" width="22" height="200" fill="var(--soft)" stroke="var(--ink)" stroke-width="2.5"/>
+   <rect x="40" y="208" width="290" height="22" fill="var(--soft)" stroke="var(--ink)" stroke-width="2.5"/>
+   <circle cx="62" cy="88" r="6" fill="var(--coral)" stroke="var(--ink)" stroke-width="2"/><circle cx="240" cy="208" r="6" fill="var(--coral)" stroke="var(--ink)" stroke-width="2"/>
+   <line x1="62" y1="88" x2="240" y2="208" stroke="var(--noInk)" stroke-width="3" stroke-dasharray="8 6"/>
+   <text class="scene-lab" x="72" y="150">3 m</text><text class="scene-lab" x="140" y="200">4 m</text>
+   <text class="scene-lab" x="165" y="132" style="font-size:18px">5 m</text>
+   ${q?`<text class="scene-q" x="66" y="200">?</text>`:`<polyline points="62,186 84,186 84,208" fill="none" stroke="var(--okInk)" stroke-width="3.5"/>`}
+   <text class="scene-lab" x="150" y="252" style="font-size:13px">위에서 내려다본 벽 모서리</text></svg>`;
+}
+const S=(inner,lab)=>`<svg viewBox="0 0 340 210" role="img" aria-label="${lab}">${inner}</svg>`;
+const M4=[
+ {t:'벽에 기댄 사다리',q:'벽 높이 <b>4 m</b> 지점에 사다리 끝이 닿고, 바닥에서 벽까지 <b>3 m</b>, 사다리 길이는 <b>5 m</b>. 벽은 바닥과 직각일까?',ok:true,w:'3² + 4² = 25 = 5² → 벽이 똑바로 서 있어요.',
+  svg:()=>S(`<line class="scene-line" x1="20" y1="190" x2="320" y2="190"/><rect x="230" y="30" width="22" height="160" fill="var(--soft)" stroke="var(--ink)" stroke-width="2.5"/>
+   <line x1="110" y1="190" x2="230" y2="50" stroke="var(--coral)" stroke-width="7" stroke-linecap="round"/>
+   <text class="scene-lab" x="150" y="207">3 m</text><text class="scene-lab" x="258" y="125">4 m</text><text class="scene-lab" x="125" y="110">사다리 5 m</text><text class="scene-q" x="212" y="182">?</text>`,'사다리 그림')},
+ {t:'목수의 벽 모서리 ①',q:'한쪽 벽 <b>6 m</b>, 다른 쪽 벽 <b>8 m</b>, 두 표시 사이 <b>10 m</b>.',ok:true,w:'36 + 64 = 100 = 10² → 직각!',
+  svg:()=>S(`<rect x="40" y="20" width="18" height="170" fill="var(--soft)" stroke="var(--ink)" stroke-width="2.5"/><rect x="40" y="172" width="270" height="18" fill="var(--soft)" stroke="var(--ink)" stroke-width="2.5"/>
+   <line x1="58" y1="55" x2="270" y2="172" stroke="var(--noInk)" stroke-width="3" stroke-dasharray="8 6"/>
+   <text class="scene-lab" x="66" y="120">6 m</text><text class="scene-lab" x="150" y="166">8 m</text><text class="scene-lab" x="170" y="105">10 m</text><text class="scene-q" x="64" y="166">?</text>`,'벽 모서리 그림')},
+ {t:'목수의 벽 모서리 ②',q:'한쪽 벽 <b>6 m</b>, 다른 쪽 벽 <b>8 m</b>, 두 표시 사이 <b>9 m</b>.',ok:false,w:'36 + 64 = 100인데 9² = 81 → 직각이 아니에요. 벽을 다시 세워야 해요!',
+  svg:()=>S(`<rect x="40" y="20" width="18" height="170" fill="var(--soft)" stroke="var(--ink)" stroke-width="2.5" transform="rotate(8 49 181)"/><rect x="40" y="172" width="270" height="18" fill="var(--soft)" stroke="var(--ink)" stroke-width="2.5"/>
+   <line x1="80" y1="58" x2="250" y2="172" stroke="var(--noInk)" stroke-width="3" stroke-dasharray="8 6"/>
+   <text class="scene-lab" x="84" y="122">6 m</text><text class="scene-lab" x="140" y="166">8 m</text><text class="scene-lab" x="172" y="105">9 m</text><text class="scene-q" x="70" y="166">?</text>`,'기울어진 벽 모서리 그림')},
+ {t:'캠핑장 텐트 기둥',q:'기둥 높이 <b>120 cm</b>, 기둥에서 말뚝까지 <b>50 cm</b>, 줄 길이 <b>130 cm</b>. 기둥은 땅과 직각으로 섰을까?',hint:'10 cm를 1로 생각하면 12, 5, 13',ok:true,w:'5² + 12² = 25 + 144 = 169 = 13² → 기둥이 똑바로 섰어요.',
+  svg:()=>S(`<line class="scene-line" x1="20" y1="190" x2="320" y2="190"/><polygon points="60,190 180,40 180,190" fill="var(--lemon)" fill-opacity=".5" stroke="var(--ink)" stroke-width="2"/>
+   <line x1="180" y1="40" x2="180" y2="190" stroke="var(--ink)" stroke-width="7"/><line x1="180" y1="40" x2="250" y2="190" stroke="var(--coral)" stroke-width="3"/>
+   <rect x="244" y="182" width="12" height="16" fill="var(--ink)"/>
+   <text class="scene-lab" x="140" y="120">120 cm</text><text class="scene-lab" x="196" y="207">50 cm</text><text class="scene-lab" x="222" y="110">줄 130 cm</text><text class="scene-q" x="186" y="182">?</text>`,'텐트 그림')},
+ {t:'조립한 책장',q:'책장 가로 <b>60 cm</b>, 높이 <b>80 cm</b>, 대각선 <b>95 cm</b>. 책장 모서리는 직각일까?',hint:'10 cm를 1로 생각하면 6, 8, 9.5 → 60² + 80²과 95²을 비교해도 OK',ok:false,w:'60² + 80² = 3600 + 6400 = 10000 = 100²인데 대각선은 95 cm → 직각이 아니에요. 책장이 기울었어요!',
+  svg:()=>S(`<polygon points="110,190 230,190 245,30 125,30" fill="var(--soft)" stroke="var(--ink)" stroke-width="3"/>
+   <line x1="117" y1="110" x2="237" y2="110" stroke="var(--ink)" stroke-width="2"/><line x1="110" y1="190" x2="245" y2="30" stroke="var(--noInk)" stroke-width="3" stroke-dasharray="8 6"/>
+   <text class="scene-lab" x="150" y="207">60 cm</text><text class="scene-lab" x="40" y="115">80 cm</text><text class="scene-lab" x="190" y="85">95 cm</text><text class="scene-q" x="114" y="182">?</text>`,'책장 그림')}];
+
+/* ---------------- 그리기와 조작 ---------------- */
+function render(){
+  renderSteps();
+  $('#view').innerHTML=V[st.at]();
+  if($('#board')) drawBoard();
+  const t=$('#sqT'); if(t) t.onchange=()=>{showSq=t.checked;drawBoard();};
+}
+document.addEventListener('click',e=>{
+  const b=e.target.closest('button'); if(!b) return;
+  if(b.dataset.go&&unlocked(b.dataset.go)){go(b.dataset.go);return;}
+  if(b.dataset.done){st.done[b.dataset.done]=true;go(b.dataset.next);return;}
+  if(b.dataset.rec){const I=info(); if(!canRecord(I)) return;
+    const r={a:I.a,b:I.b,c:I.c,kind:I.kind,key:[I.a,I.b,I.c].join('-')};
+    (b.dataset.rec==='1'?st.rec1:st.rec2).push(r); save(); render(); return;}
+  if(b.dataset.quiz){st[b.dataset.quiz]=+b.dataset.i;save();render();return;}
+  if(b.dataset.m3!==undefined){st.m3[b.dataset.m3]=b.dataset.v==='1';save();render();return;}
+  if(b.dataset.m4!==undefined){st.m4[b.dataset.m4]=b.dataset.v==='1';save();render();return;}
+  if(b.id==='restart'){st={at:'s0',done:{},rec1:[],rec2:[],q1:null,q2a:null,q2b:null,m3:{},m4:{}};P=[{x:3,y:2},{x:9,y:2},{x:5,y:6}];save();render();}
+});
+render();
+</script>
+
+</body>
+</html>
