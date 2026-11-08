@@ -71,6 +71,10 @@ th,td{border-bottom:1.5px solid var(--grid);padding:6px 4px;text-align:center}
 th{font-size:13px;color:var(--muted);font-weight:700}
 td.sum{font-weight:900}
 .hidden-col{color:transparent;text-shadow:none}
+.sumIn{width:84px;font:inherit;font-weight:900;font-size:18px;text-align:center;border:2.5px solid var(--ink);border-radius:8px;padding:2px 4px;background:var(--lemon);color:#22201C}
+.sumIn.wrong{background:var(--noBg);color:var(--noInk);animation:shake .3s}
+td.sum.ok{color:var(--okInk)}
+@keyframes shake{25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
 .mission{border:2.5px dashed var(--ink);border-radius:14px;padding:10px 14px;background:var(--bg);margin-bottom:10px}
 .mission b{font-family:var(--display);font-weight:400;font-size:19px}
 .q{margin-top:12px;border:3px solid var(--ink);border-radius:14px;padding:12px 14px;background:var(--lemon);color:#22201C}
@@ -220,9 +224,14 @@ document.addEventListener('keydown',e=>{const h=document.activeElement;if(!h||!h
 
 /* ---------------- 각 화면 ---------------- */
 const M=s=>`<span class="math">${s}</span>`;
+function sumCell(r,i,showSum){
+  if(showSum!=='input') return `<td class="sum ${showSum?'':'hidden-col'}">${showSum?r.a+r.b:'?'}</td>`;
+  if(r.ok) return `<td class="sum ok">✔ ${r.a+r.b}</td>`;
+  return `<td class="sum"><input class="sumIn ${r.wrong?'wrong':''}" data-row="${i}" inputmode="numeric" placeholder="계산!" value="${r.try??''}" aria-label="${i+1}번 기록의 짧은 변² + 중간 변²"></td>`;
+}
 function recTable(rows,showSum){
   return `<table><thead><tr><th>#</th><th>짧은 변²</th><th>중간 변²</th><th>짧은 변² + 중간 변²</th><th>가장 긴 변²</th>${st.at==='m2'?'<th>가장 큰 각</th>':''}</tr></thead><tbody>
-   ${rows.map((r,i)=>`<tr><td>${i+1}</td><td>${r.a}</td><td>${r.b}</td><td class="sum ${showSum?'':'hidden-col'}">${showSum?r.a+r.b:'?'}</td><td><b>${r.c}</b></td>${st.at==='m2'?`<td>${r.kind==='big'?'90°보다 큼':'90°보다 작음'}</td>`:''}</tr>`).join('')||`<tr><td colspan="6" class="note">아직 기록이 없어요</td></tr>`}</tbody></table>`;
+   ${rows.map((r,i)=>`<tr><td>${i+1}</td><td>${r.a}</td><td>${r.b}</td>${sumCell(r,i,showSum)}<td><b>${r.c}</b></td>${st.at==='m2'?`<td>${r.kind==='big'?'90°보다 큼':'90°보다 작음'}</td>`:''}</tr>`).join('')||`<tr><td colspan="6" class="note">아직 기록이 없어요</td></tr>`}</tbody></table>`;
 }
 function quizHTML(key,qtext,opts,okIdx,okFb,noFb){
   const ans=st[key];
@@ -244,8 +253,9 @@ const V={
      <div id="readout"></div>
      <div class="nav" style="justify-content:flex-start"><button class="btn hot" id="recBtn" data-rec="1">📌 기록하기 (${st.rec1.length}/3)</button>
        <label class="note" style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="sqT" ${showSq?'checked':''}> 정사각형 보기</label></div>
-     ${recTable(st.rec1,st.q1===1)}
-     ${full?quizHTML('q1','세 기록에서 찾은 규칙은?',[`(짧은 변) + (중간 변) = (가장 긴 변)`,`(짧은 변)² + (중간 변)² = (가장 긴 변)²`,`(가장 긴 변)² = (짧은 변)² × 2`],1,'맞아요! 표의 ? 칸이 열렸어요. 작은 두 정사각형의 넓이의 합 = 가장 큰 정사각형의 넓이','표의 숫자로 직접 계산해 보세요.'):''}
+     ${recTable(st.rec1,'input')}
+     ${st.rec1.length?`<p class="note" style="margin:4px 0 0">노란 칸에 <b>짧은 변² + 중간 변²</b>을 직접 계산해서 쓰고 Enter!</p>`:''}
+     ${full&&st.rec1.every(r=>r.ok)?quizHTML('q1','표를 보고 찾은 규칙은?',[`(짧은 변) + (중간 변) = (가장 긴 변)`,`(짧은 변)² + (중간 변)² = (가장 긴 변)²`,`(가장 긴 변)² = (짧은 변)² × 2`],1,'맞아요! 작은 두 정사각형의 넓이의 합 = 가장 큰 정사각형의 넓이','직접 계산한 칸과 가장 긴 변² 칸을 비교해 보세요.'):''}
      <div class="nav"><button class="btn go" data-done="m1" data-next="m2" ${st.q1===1?'':'disabled'}>다음 미션 ▶</button></div>
    </div></div></section>`;},
  m2:()=>{const full=st.rec2.length>=2;return `<section class="card"><h2 class="case-h">미션 2 · 직각이 아니면?</h2>
@@ -343,6 +353,16 @@ document.addEventListener('click',e=>{
     const r={a:I.a,b:I.b,c:I.c,kind:I.kind,key:[I.a,I.b,I.c].join('-')};
     (b.dataset.rec==='1'?st.rec1:st.rec2).push(r); save(); render(); return;}
   if(b.dataset.quiz){st[b.dataset.quiz]=+b.dataset.i;save();render();return;}
+});
+document.addEventListener('change',e=>{
+  const t=e.target; if(!t.classList||!t.classList.contains('sumIn')) return;
+  const i=+t.dataset.row, r=st.rec1[i], v=t.value.trim();
+  if(v===''){r.try='';return;}
+  r.try=v; r.wrong=+v!==r.a+r.b; r.ok=!r.wrong; save(); render();
+  const nx=document.querySelector('.sumIn'); if(nx) nx.focus();
+});
+document.addEventListener('click',e=>{
+  const b=e.target.closest('button'); if(!b) return;
   if(b.dataset.m3!==undefined){st.m3[b.dataset.m3]=b.dataset.v==='1';save();render();return;}
   if(b.dataset.m4!==undefined){st.m4[b.dataset.m4]=b.dataset.v==='1';save();render();return;}
   if(b.id==='restart'){st={at:'s0',done:{},rec1:[],rec2:[],q1:null,q2a:null,q2b:null,m3:{},m4:{}};P=[{x:3,y:2},{x:9,y:2},{x:5,y:6}];save();render();}
